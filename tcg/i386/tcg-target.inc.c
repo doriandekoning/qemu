@@ -23,6 +23,7 @@
  */
 
 #include "tcg-pool.inc.c"
+#include <stdio.h>
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -2118,16 +2119,21 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 #if defined(CONFIG_SOFTMMU)
     mem_index = get_mmuidx(oi);
-
+    //printf("H%x%x\n", datahi, datalo);
     tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
                      label_ptr, offsetof(CPUTLBEntry, addr_read));
 
     /* TLB Hit.  */
     tcg_out_qemu_ld_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, is64, opc);
 
+
+//    tcg_out_call(s, (tcg_insn_unit*)(intptr_t)helper_tracephysmem);
     /* Record the current context of a load into ldst label */
     add_qemu_ldst_label(s, true, is64, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
+
+    //According to mtrace we can trace the memory access here, the args to
+    //a tcg_out_calli are: host_addr, guest_addr, bytes
 #else
     tcg_out_qemu_ld_direct(s, datalo, datahi, addrlo, x86_guest_base_index,
                            x86_guest_base_offset, x86_guest_base_seg,

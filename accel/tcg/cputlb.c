@@ -33,6 +33,9 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
+#include <stdio.h>
+//#include "trace-tcg.h"
+
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -1261,6 +1264,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     void *haddr;
     uint64_t res;
 
+
     /* Handle CPU specific unaligned behaviour */
     if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(env_cpu(env), addr, access_type,
@@ -1280,6 +1284,8 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     }
 
     /* Handle an IO access.  */
+    // We do not need to trace physical memory accesses in this branche since
+    // these go to IO and not to memory
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
         if ((addr & (size - 1)) != 0) {
             goto do_unaligned_access;
@@ -1304,7 +1310,6 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
                 goto do_aligned_access;
             }
         }
-
         res = io_readx(env, &env_tlb(env)->d[mmu_idx].iotlb[index],
                        mmu_idx, addr, retaddr, access_type, size);
         return handle_bswap(res, size, big_endian);
@@ -1320,8 +1325,8 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     do_unaligned_access:
         addr1 = addr & ~((target_ulong)size - 1);
         addr2 = addr1 + size;
-        r1 = full_load(env, addr1, oi, retaddr);
-        r2 = full_load(env, addr2, oi, retaddr);
+        r1 = full_load(env, addr1, oi, retaddr); //These lines call this function (or another load function which calls load helper again)
+        r2 = full_load(env, addr2, oi, retaddr); //Therefore we do not need to add tracing to this branch
         shift = (addr & (size - 1)) * 8;
 
         if (big_endian) {
@@ -1336,6 +1341,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
 
  do_aligned_access:
     haddr = (void *)((uintptr_t)addr + entry->addend);
+//    trace_guest_phys_mem_access(env_cpu(env),(void*)addr,(void*)haddr, 0); //TODO: meminfo trace_mem_build_info(SHIFT, false, MO_TE, false));
     switch (size) {
     case 1:
         res = ldub_p(haddr);
@@ -1364,7 +1370,6 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     default:
         g_assert_not_reached();
     }
-
     return res;
 }
 
@@ -1508,7 +1513,6 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     const size_t tlb_off = offsetof(CPUTLBEntry, addr_write);
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     void *haddr;
-
     /* Handle CPU specific unaligned behaviour */
     if (addr & ((1 << a_bits) - 1)) {
         cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,

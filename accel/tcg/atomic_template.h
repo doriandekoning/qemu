@@ -59,24 +59,32 @@
 # define ABI_TYPE  uint32_t
 #endif
 
+	//printf("CR3%lx\n", env->cr[3]);					
 #define ATOMIC_TRACE_RMW do {                                           \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
-                                                                        \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
-        trace_guest_mem_before_exec(env_cpu(env), addr,             \
+	trace_guest_phys_mem_access(env_cpu(env),(void*)addr,(void*)haddr,\
+		env->cr[3]);	\
+	trace_guest_mem_before_exec(env_cpu(env), addr,             \
                                     info | TRACE_MEM_ST);               \
+	trace_guest_phys_mem_access(env_cpu(env),(void*)addr,(void*)haddr,\
+		env->cr[3]);\
     } while (0)
 
 #define ATOMIC_TRACE_LD do {                                            \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
                                                                         \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
+	trace_guest_phys_mem_access(env_cpu(env),(void*)addr,(void*)haddr,\
+		env->cr[3]);\
     } while (0)
 
 # define ATOMIC_TRACE_ST do {                                           \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, true); \
                                                                         \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
+	trace_guest_phys_mem_access(env_cpu(env),(void*)addr,(void*)haddr,\
+		env->cr[3]);\
     } while (0)
 
 /* Define host-endian atomic operations.  Note that END is used within

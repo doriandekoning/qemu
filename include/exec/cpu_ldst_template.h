@@ -26,6 +26,7 @@
 
 #if !defined(SOFTMMU_CODE_ACCESS)
 #include "trace-root.h"
+//#include "target/i386/hvf/x86_mmu.c"
 #endif
 
 #include "trace/mem.h"
@@ -99,12 +100,22 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     if (unlikely(entry->ADDR_READ !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         oi = make_memop_idx(SHIFT, mmu_idx);
+	// helper_ret_ldq_mmu calls load_helper which traces the access
         res = glue(glue(helper_ret_ld, URETSUFFIX), MMUSUFFIX)(env, addr,
                                                             oi, retaddr);
     } else {
         uintptr_t hostaddr = addr + entry->addend;
         res = glue(glue(ld, USUFFIX), _p)((uint8_t *)hostaddr);
+#if !defined(SOFTMMU_CODE_ACCESS)
+	trace_guest_phys_mem_access(
+		env_cpu(env),
+		(void*)ptr,
+		(void*)hostaddr, env->cr[3]);
+//		trace_mem_build_info(SHIFT, false, MO_TE, false)
+//	);
+#endif
     }
+
     return res;
 }
 
@@ -138,12 +149,22 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     if (unlikely(entry->ADDR_READ !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         oi = make_memop_idx(SHIFT, mmu_idx);
+	  // helper_ret_ldq_mmu calls load_helper which traces the access
         res = (DATA_STYPE)glue(glue(helper_ret_ld, SRETSUFFIX),
                                MMUSUFFIX)(env, addr, oi, retaddr);
     } else {
         uintptr_t hostaddr = addr + entry->addend;
         res = glue(glue(lds, SUFFIX), _p)((uint8_t *)hostaddr);
+#if !defined(SOFTMMU_CODE_ACCESS)
+	trace_guest_phys_mem_access(
+		env_cpu(env),
+		(void*)ptr,
+		(void*)hostaddr, env->cr[3]);
+//		trace_mem_build_info(SHIFT, false, MO_TE, false)
+//	);
+#endif
     }
+
     return res;
 }
 
@@ -180,11 +201,21 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     if (unlikely(tlb_addr_write(entry) !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         oi = make_memop_idx(SHIFT, mmu_idx);
+        // helper_ret_ldq_mmu calls load_helper which traces the access
         glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(env, addr, v, oi,
                                                      retaddr);
     } else {
         uintptr_t hostaddr = addr + entry->addend;
         glue(glue(st, SUFFIX), _p)((uint8_t *)hostaddr, v);
+#if !defined(SOFTMMU_CODE_ACCESS)
+	trace_guest_phys_mem_access(
+		env_cpu(env),
+		(void*)ptr,
+		(void*)hostaddr,
+		env->cr[3]
+	//	trace_mem_build_info(SHIFT, false, MO_TE, false)
+	);
+#endif
     }
 }
 

@@ -641,3 +641,8 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
     env->pkru = val;
     tlb_flush(cs);
 }
+
+void helper_tracephysmem(CPUX86State *env, uint64_t haddr, uint64_t vaddr)//TODO make target_ulong
+{
+     //printf("Haddr%lx,\t Vaddr:%lx\n", haddr, vaddr);
+}

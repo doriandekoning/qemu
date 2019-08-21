@@ -228,3 +228,6 @@ DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
 
 DEF_HELPER_1(rdrand, tl, env)
+
+//Helper for tracing physical memory addresses of memory accesses
+DEF_HELPER_3(tracephysmem, void, env, i64, i64)

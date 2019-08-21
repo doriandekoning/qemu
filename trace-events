@@ -159,6 +159,9 @@ vcpu guest_cpu_reset(void)
 # Targets: TCG(all)
 vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
+
+vcpu guest_phys_mem_access(void* vaddr, void* haddr, uint32_t info) "haddr=0x%016"PRIx64" vaddr=0x%016"PRIx64" info=%lx"
+
 # linux-user/syscall.c
 # bsd-user/syscall.c
 
