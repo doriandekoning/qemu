@@ -65,9 +65,7 @@ typedef struct {
     uint64_t event; /* event ID value */
     uint64_t timestamp_ns;
     uint32_t length;   /*    in bytes */
-    uint32_t pid;
-    uint64_t arguments[];
-} TraceRecord;
+} __attribute__ ((packed)) TraceRecord;
 
 typedef struct {
     uint64_t header_event_id; /* HEADER_EVENT_ID */
@@ -173,19 +171,19 @@ static gpointer writeout_thread(gpointer opaque)
             dropped.rec.event = DROPPED_EVENT_ID;
             dropped.rec.timestamp_ns = get_clock();
             dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t);
-            dropped.rec.pid = trace_pid;
+	//            dropped.rec.pid = trace_pid;
             do {
                 dropped_count = g_atomic_int_get(&dropped_events);
             } while (!g_atomic_int_compare_and_exchange(&dropped_events,
                                                         dropped_count, 0));
-            dropped.rec.arguments[0] = dropped_count;
+//            dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }
 
         while (get_trace_record(idx, &recordptr)) {
-            unused = fwrite(&type, sizeof(type), 1, trace_fp);
-            unused = fwrite(recordptr, recordptr->length, 1, trace_fp);
+            unused = fwrite(&type, sizeof(type), 1, trace_fp); //TODO write only single byte
+            unused = fwrite(recordptr, recordptr->length, 1, trace_fp); 
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
             idx = writeout_idx % TRACE_BUF_LEN;
@@ -201,6 +199,11 @@ void trace_record_write_u64(TraceBufferRecord *rec, uint64_t val)
     rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint64_t));
 }
 
+void trace_record_write_u8(TraceBufferRecord *rec, uint8_t val)
+{
+    rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint8_t));
+}
+
 void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen)
 {
     /* Write string length first */
@@ -213,7 +216,7 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, rec_off, old_idx, new_idx;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
-    uint64_t event_u64 = event;
+    uint64_t event_u64 = event;//(uint64_t)(event %  (1 << 8));
     uint64_t timestamp_ns = get_clock();
 
     do {
@@ -231,10 +234,11 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
     idx = old_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
-    rec_off = write_to_buffer(rec_off, &event_u64, sizeof(event_u64));
-    rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns));
-    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len));
-    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
+    rec_off = write_to_buffer(rec_off, &event_u64, sizeof(event_u64)); //Write: eventid -> 1
+    rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns)); //Write: tick = 8
+    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len)); //Write: length -> 0
+//    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
+//    //Write: pid -> 0
 
     rec->tbuf_idx = idx;
     rec->rec_off  = (idx + sizeof(TraceRecord)) % TRACE_BUF_LEN;

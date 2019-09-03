@@ -116,6 +116,7 @@ def read_trace_records(edict, idtoname, fobj):
         (rectype, ) = struct.unpack('=Q', t)
         if rectype == record_type_mapping:
             event_id, name = get_mapping(fobj)
+            print(event_id, name)
             idtoname[event_id] = name
         else:
             rec = read_record(edict, idtoname, fobj)
@@ -198,12 +199,15 @@ def process(events, log, analyzer, read_header=True):
         event_argcount = len(event.args)
         fn_argcount = len(inspect.getargspec(fn)[0]) - 1
         if fn_argcount == event_argcount + 1:
+            print("DEZE!")
             # Include timestamp as first argument
             return lambda _, rec: fn(*(rec[1:2] + rec[3:3 + event_argcount]))
-        elif fn_argcount == event_argcount + 2:
+        elif fn_argcount == event_argcount + 1:
+            print("NEE deze")
             # Include timestamp and pid
-            return lambda _, rec: fn(*rec[1:3 + event_argcount])
+            return lambda _, rec: fn(*rec[1:2 + event_argcount])
         else:
+            print("NEE DIT")
             # Just arguments, no timestamp or pid
             return lambda _, rec: fn(*rec[3:3 + event_argcount])
 
@@ -248,9 +252,8 @@ if __name__ == '__main__':
             delta_ns = timestamp - self.last_timestamp
             self.last_timestamp = timestamp
 
-            fields = [event.name, '%0.3f' % (delta_ns / 1000.0),
-                      'pid=%d' % rec[2]]
-            i = 3
+            fields = [event.name, '%0.3f' % (delta_ns / 1000.0)]
+            i = 2
             for type, name in event.args:
                 if is_string(type):
                     fields.append('%s=%s' % (name, rec[i]))

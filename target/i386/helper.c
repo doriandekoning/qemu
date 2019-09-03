@@ -24,6 +24,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "kvm_i386.h"
+#include "trace-root.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/tcg.h"
 #include "sysemu/hw_accel.h"
@@ -666,6 +667,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
     env->cr[3] = new_cr3;
+    trace_guest_update_cr3(env_cpu(env), new_cr3);
     if (env->cr[0] & CR0_PG_MASK) {
         qemu_log_mask(CPU_LOG_MMU,
                         "CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);

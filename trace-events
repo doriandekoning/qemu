@@ -159,6 +159,8 @@ vcpu guest_cpu_reset(void)
 # Targets: TCG(all)
 vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
+# This event is actually only for targets/i386 but since the vcpu property is only tolerated in this (the root) trace-events file it is placed here
+vcpu guest_update_cr3(uint64_t newcr3) "cr3=0x%016"PRIx64""
 # linux-user/syscall.c
 # bsd-user/syscall.c
 
@@ -170,6 +172,7 @@ vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRI
 # Mode: user
 # Targets: TCG(all)
 vcpu guest_user_syscall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8) "num=0x%016"PRIx64" arg1=0x%016"PRIx64" arg2=0x%016"PRIx64" arg3=0x%016"PRIx64" arg4=0x%016"PRIx64" arg5=0x%016"PRIx64" arg6=0x%016"PRIx64" arg7=0x%016"PRIx64" arg8=0x%016"PRIx64
+
 
 # @num: System call number.
 # @ret: System call result value.
