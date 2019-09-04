@@ -28,10 +28,10 @@
 #define HEADER_VERSION 4
 
 /** Records were dropped event ID */
-#define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
+#define DROPPED_EVENT_ID (~(uint8_t)0 - 1)
 
 /** Trace record is valid */
-#define TRACE_RECORD_VALID ((uint64_t)1 << 63)
+#define TRACE_RECORD_VALID ((uint8_t)1 << 7)
 
 /*
  * Trace records are written out by a dedicated thread.  The thread waits for
@@ -62,7 +62,7 @@ static char *trace_file_name;
 
 /* * Trace buffer entry */
 typedef struct {
-    uint64_t event; /* event ID value */
+    uint8_t event; /* event ID value */
     uint64_t timestamp_ns;
     uint32_t length;   /*    in bytes */
 } __attribute__ ((packed)) TraceRecord;
@@ -216,7 +216,8 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, rec_off, old_idx, new_idx;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
-    uint64_t event_u64 = event;//(uint64_t)(event %  (1 << 8));
+    printf("S:%lu, %lu\n", sizeof(TraceRecord), datasize);
+    uint8_t event_u8 = (uint8_t)(event %  (1 << 7));
     uint64_t timestamp_ns = get_clock();
 
     do {
@@ -234,7 +235,7 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
     idx = old_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
-    rec_off = write_to_buffer(rec_off, &event_u64, sizeof(event_u64)); //Write: eventid -> 1
+    rec_off = write_to_buffer(rec_off, &event_u8, sizeof(event_u8)); //Write: eventid -> 1
     rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns)); //Write: tick = 8
     rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len)); //Write: length -> 0
 //    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
