@@ -162,7 +162,7 @@ static gpointer writeout_thread(gpointer opaque)
     unsigned int idx = 0;
     int dropped_count;
     size_t unused __attribute__ ((unused));
-    uint64_t type = TRACE_RECORD_TYPE_EVENT;
+    uint8_t type = TRACE_RECORD_TYPE_EVENT;
 
     for (;;) {
         wait_for_trace_records_available();
@@ -175,7 +175,7 @@ static gpointer writeout_thread(gpointer opaque)
             do {
                 dropped_count = g_atomic_int_get(&dropped_events);
             } while (!g_atomic_int_compare_and_exchange(&dropped_events,
-                                                        dropped_count, 0));
+                                                    dropped_count, 0));
 //            dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
@@ -287,7 +287,7 @@ void trace_record_finish(TraceBufferRecord *rec)
 
 static int st_write_event_mapping(void)
 {
-    uint64_t type = TRACE_RECORD_TYPE_MAPPING;
+    uint8_t type = TRACE_RECORD_TYPE_MAPPING;
     TraceEventIter iter;
     TraceEvent *ev;
 
