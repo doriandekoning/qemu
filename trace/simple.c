@@ -62,9 +62,9 @@ static char *trace_file_name;
 
 /* * Trace buffer entry */
 typedef struct {
+    uint32_t length;   /*    in bytes */
     uint8_t event; /* event ID value */
     uint64_t timestamp_ns;
-    uint32_t length;   /*    in bytes */
 } __attribute__ ((packed)) TraceRecord;
 
 typedef struct {
@@ -183,7 +183,7 @@ static gpointer writeout_thread(gpointer opaque)
 
         while (get_trace_record(idx, &recordptr)) {
             unused = fwrite(&type, sizeof(type), 1, trace_fp); //TODO write only single byte
-            unused = fwrite(recordptr, recordptr->length, 1, trace_fp); 
+            unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
             idx = writeout_idx % TRACE_BUF_LEN;
@@ -216,7 +216,6 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, rec_off, old_idx, new_idx;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
-    printf("S:%lu, %lu\n", sizeof(TraceRecord), datasize);
     uint8_t event_u8 = (uint8_t)(event %  (1 << 7));
     uint64_t timestamp_ns = get_clock();
 
@@ -235,9 +234,9 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
     idx = old_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
+    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len)); //Write: length -> 0
     rec_off = write_to_buffer(rec_off, &event_u8, sizeof(event_u8)); //Write: eventid -> 1
     rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns)); //Write: tick = 8
-    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len)); //Write: length -> 0
 //    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
 //    //Write: pid -> 0
 
