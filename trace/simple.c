@@ -292,11 +292,12 @@ static int st_write_event_mapping(void)
 
     trace_event_iter_init(&iter, NULL);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
-        uint64_t id = trace_event_get_id(ev);
+        //uint64_t id = trace_event_get_id(ev);
+	uint8_t event_id = (uint8_t)(trace_event_get_id(ev) %  (1 << 7));
         const char *name = trace_event_get_name(ev);
         uint32_t len = strlen(name);
         if (fwrite(&type, sizeof(type), 1, trace_fp) != 1 ||
-            fwrite(&id, sizeof(id), 1, trace_fp) != 1 ||
+            fwrite(&event_id, sizeof(event_id), 1, trace_fp) != 1 ||
             fwrite(&len, sizeof(len), 1, trace_fp) != 1 ||
             fwrite(name, len, 1, trace_fp) != 1) {
             return -1;
