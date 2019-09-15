@@ -178,23 +178,25 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
                     continue;
                 }
 
-                if (pde & PG_PSE_MASK) {
-                    /* 2M pages, CR4.PSE is ignored */
-                    print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
-                            (l3 << 21), pde, 0x3ffffffe00000ULL);
+		if (pde & PG_PSE_MASK) {
+		    /* 2M pages, CR4.PSE is ignored */
+		    print_pte(mon, env, (l0 << 48) + (l1 << 39) +
+                            (l2 << 30) + (l3 << 21),
+                            pde, 0x3ffffffe00000ULL);
                     continue;
                 }
 
                 pt_addr = pde & 0x3fffffffff000ULL;
+
                 for (l4 = 0; l4 < 512; l4++) {
                     cpu_physical_memory_read(pt_addr
                             + l4 * 8,
                             &pte, 8);
                     pte = le64_to_cpu(pte);
-                    if (pte & PG_PRESENT_MASK) {
+		    if (pte & PG_PRESENT_MASK) {
                         print_pte(mon, env, (l0 << 48) + (l1 << 39) +
-                                (l2 << 30) + (l3 << 21) + (l4 << 12),
-                                pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
+                            (l2 << 30) + (l3 << 21) + (l4 << 12),
+		            pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
                     }
                 }
             }
@@ -222,7 +224,6 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env)
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
-
     env = mon_get_cpu_env();
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
@@ -634,6 +635,11 @@ const MonitorDef monitor_defs[] = {
 #endif
     { "eflags", offsetof(CPUX86State, eflags) },
     { "eip", offsetof(CPUX86State, eip) },
+    { "cr0", offsetof(CPUX86State, cr[0])},
+    { "cr1", offsetof(CPUX86State, cr[1])},
+    { "cr2", offsetof(CPUX86State, cr[2])},
+    { "cr3", offsetof(CPUX86State, cr[3])},
+    { "cr4", offsetof(CPUX86State, cr[4])},
     SEG("cs", R_CS)
     SEG("ds", R_DS)
     SEG("es", R_ES)
