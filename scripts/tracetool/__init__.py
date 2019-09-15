@@ -68,6 +68,8 @@ ALLOWED_TYPES = [
     "ptrdiff_t",
     # Magic substitution is done by tracetool
     "TCGv",
+    "TCGv_i64",
+    "TCGv_i32"
 ]
 
 def validate_type(name):

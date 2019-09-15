@@ -62,21 +62,21 @@
 #define ATOMIC_TRACE_RMW do {                                           \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
                                                                         \
-        trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
-        trace_guest_mem_before_exec(env_cpu(env), addr,             \
-                                    info | TRACE_MEM_ST);               \
+        trace_guest_mem_load_before_exec(env_cpu(env), addr, info);      \
+        trace_guest_mem_store_before_exec(env_cpu(env), addr,             \
+                                    info | TRACE_MEM_ST, val);               \
     } while (0)
 
 #define ATOMIC_TRACE_LD do {                                            \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
                                                                         \
-        trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
+        trace_guest_mem_load_before_exec(env_cpu(env), addr, info);      \
     } while (0)
 
 # define ATOMIC_TRACE_ST do {                                           \
         uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, true); \
                                                                         \
-        trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
+        trace_guest_mem_store_before_exec(env_cpu(env), addr, info, val);      \
     } while (0)
 
 /* Define host-endian atomic operations.  Note that END is used within
@@ -93,7 +93,7 @@
 #endif
 
 ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
-                              ABI_TYPE cmpv, ABI_TYPE newv EXTRA_ARGS)
+                              ABI_TYPE cmpv, ABI_TYPE val EXTRA_ARGS)
 {
     ATOMIC_MMU_DECLS;
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
@@ -101,9 +101,9 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
 
     ATOMIC_TRACE_RMW;
 #if DATA_SIZE == 16
-    ret = atomic16_cmpxchg(haddr, cmpv, newv);
+    ret = atomic16_cmpxchg(haddr, cmpv, val);
 #else
-    ret = atomic_cmpxchg__nocheck(haddr, cmpv, newv);
+    ret = atomic_cmpxchg__nocheck(haddr, cmpv, val);
 #endif
     ATOMIC_MMU_CLEANUP;
     return ret;
@@ -227,7 +227,7 @@ GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
 #endif
 
 ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
-                              ABI_TYPE cmpv, ABI_TYPE newv EXTRA_ARGS)
+                              ABI_TYPE cmpv, ABI_TYPE val EXTRA_ARGS)
 {
     ATOMIC_MMU_DECLS;
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
@@ -235,9 +235,9 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
 
     ATOMIC_TRACE_RMW;
 #if DATA_SIZE == 16
-    ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(newv));
+    ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(val));
 #else
-    ret = atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
+    ret = atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(val));
 #endif
     ATOMIC_MMU_CLEANUP;
     return BSWAP(ret);

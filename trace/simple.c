@@ -239,7 +239,6 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
     rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns)); //Write: tick = 8
 //    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
 //    //Write: pid -> 0
-
     rec->tbuf_idx = idx;
     rec->rec_off  = (idx + sizeof(TraceRecord)) % TRACE_BUF_LEN;
     return 0;
