@@ -36,6 +36,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
 
+
 /* Perform linear address sign extension */
 static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
 {
@@ -154,7 +155,6 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
         if (!(pml4e & PG_PRESENT_MASK)) {
             continue;
         }
-
         pdp_addr = pml4e & 0x3fffffffff000ULL;
         for (l2 = 0; l2 < 512; l2++) {
             cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
@@ -381,7 +381,7 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env)
     uint64_t l1, l2, l3, l4;
     uint64_t pml4e, pdpe, pde, pte;
     uint64_t pml4_addr, pdp_addr, pd_addr, pt_addr, start, end;
-
+	
     pml4_addr = env->cr[3] & 0x3fffffffff000ULL;
     last_prot = 0;
     start = -1;
@@ -712,6 +712,93 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_SevInfo(info);
+}
+
+
+void hmp_dump_tlb(Monitor *mon, const QDict *qdict)
+{
+	CPUArchState *env;
+	const char *path;
+	FILE *f;
+	uint64_t amountTables = 0;
+	env = mon_get_cpu_env();
+	if(!env) {
+		monitor_printf(mon, "No CPU found!\n");
+		return;
+	}
+	//Check if paging is enabled
+	if(!(env->cr[0] & CR0_PG_MASK)){
+		monitor_printf(mon, "Paging is not enabled!\n");
+		return;
+	}
+	//Check if PAE is enabled, Long mode is disabled and 5 level paging
+	//disabled
+	if((env->cr[4] & CR4_PAE_MASK) && (env->hflags & HF_LMA_MASK) && !(env->cr[4] & CR4_LA57_MASK)){
+		monitor_printf(mon, "Yes!\n");
+	}else{
+		monitor_printf(mon, "Pageing mode which is enabled is not supported!\n");
+		return;
+	}
+	path = qdict_get_str(qdict, "path");
+
+	f = fopen(path, "wb");
+	if(!f){
+		monitor_printf(mon, "Could not open file!\n");
+		return;
+	}
+	//L1
+	monitor_printf(mon, "Dumping tlb L1 to %s!\n", path);
+	uint64_t l1_addr = env->cr[3] & 0x3fffffffff000ULL;
+	uint64_t buffer[512 * 8];
+	cpu_physical_memory_read(l1_addr, buffer, 512 * 8);
+	amountTables++;
+	if (fwrite(buffer, 8, 512, f) != 512) {
+		monitor_printf(mon, "Could not write l1\n");
+		return;
+	}
+	//L2
+	monitor_printf(mon, "Dumping L2 tables!\n");
+	uint64_t l2_buffer[512*8];
+	for(int l1 = 0; l1 < 512; l1++) {
+		uint64_t l1_entry = le64_to_cpu(buffer[l1]);
+		if ( l1_entry & PG_PRESENT_MASK) {
+			cpu_physical_memory_read(l1_entry & 0x3fffffffff000ULL, l2_buffer, 512*8);
+			amountTables++;
+			if(fwrite(l2_buffer, 8, 512, f) != 512) {
+				monitor_printf(mon, "Could not write l2\n");
+				return;
+			}
+
+			uint64_t l3_buffer[512*8];
+
+			for(int l2 = 0; l2 < 512; l2++) {
+				uint64_t l2_entry = le64_to_cpu(l2_buffer[l2]);
+				if ( l2_entry & PG_PRESENT_MASK && !(l2_entry & PG_PSE_MASK )) {
+					cpu_physical_memory_read(l2_entry & 0x3fffffffff000ULL, l3_buffer, 512*8);
+					amountTables++;
+					if(fwrite(l3_buffer, 8, 512, f) != 512) {
+						monitor_printf(mon, "Could not write l3\n");
+						return;
+					}
+					uint64_t l4_buffer[512*8];
+					for(int l3 = 0; l3 < 512; l2++) {
+						uint64_t l3_entry = le64_to_cpu(l3_buffer[l3]);
+						if ( l3_entry & PG_PRESENT_BIT && !(l3_entry & PG_PSE_MASK)) {
+							cpu_physical_memory_read(l3_entry & 0x3fffffffff000ULL, l4_buffer, 512*8);
+							amountTables++;
+							if(fwrite(l4_buffer, 8, 512, f) != 512) {
+								monitor_printf(mon, "Could not write l4\n");
+								return;
+		                                        }
+						}
+					}
+				}
+			}
+		}
+	}
+	monitor_printf(mon, "Amount of subtables: %lu\n", amountTables);
+
+
 }
 
 SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
