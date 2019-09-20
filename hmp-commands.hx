@@ -1942,5 +1942,18 @@ ETEXI
     },
 
 STEXI
+@item dump-tlb @var{path}
+Dump the tlb of the current cpu and cr3 value to a file at @var{path}
+ETEXI
+
+    {
+         .name      = "dump-tlb",
+         .args_type = "path:s",
+         .params    = "path of dump",
+         .help      = "Dump TLB of current CPU and CR3",
+         .cmd       = hmp_dump_tlb,
+         .flags     = "p",
+    },
+STEXI
 @end table
 ETEXI
