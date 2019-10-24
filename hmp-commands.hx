@@ -1947,13 +1947,27 @@ Dump the tlb of the current cpu and cr3 value to a file at @var{path}
 ETEXI
 
     {
-         .name      = "dump-tlb",
-         .args_type = "path:s",
-         .params    = "path of dump",
-         .help      = "Dump TLB of current CPU and CR3",
-         .cmd       = hmp_dump_tlb,
+         .name      = "dump-pagetable",
+         .args_type = "path:s,cr3:l",
+         .params    = "path cr3",
+         .help      = "Dump pagetable at given CR3",
+         .cmd       = hmp_dump_pagetable,
          .flags     = "p",
     },
+
 STEXI
+@item flush-trace 
+Flush the trace file (for simple trace backend)
+ETEXI
+
+    { 
+        .name       = "flush-simple-trace-file",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Flush the simple trace file",
+        .cmd        = hmp_flush_simpletrace_file
+    },
+STEXI
+
 @end table
 ETEXI
