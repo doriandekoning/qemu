@@ -62,7 +62,9 @@ def generate_c(event, group):
         args=event.args)
     sizes = []
     for type_, name in event.args:
-        if is_string(type_):
+        if name == "__cpu":
+            sizes.append("1")
+        elif is_string(type_):
             out('    size_t arg%(name)s_len = %(name)s ? MIN(strlen(%(name)s), MAX_TRACE_STRLEN) : 0;',
                 name=name)
             strsizeinfo = "4 + arg%s_len" % name
@@ -96,8 +98,10 @@ def generate_c(event, group):
 
     if len(event.args) > 0:
         for type_, name in event.args:
+            if name == "__cpu":
+                out('    trace_record_write_u8(&rec, (uint8_t)__cpu->cpu_index);')
             # string
-            if is_string(type_):
+            elif is_string(type_):
                 out('    trace_record_write_str(&rec, %(name)s, arg%(name)s_len);',
                     name=name)
             # pointer var (not string)

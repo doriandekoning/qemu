@@ -2789,7 +2789,6 @@ static int kvm_get_sregs(X86CPU *cpu)
     env->gdt.limit = sregs.gdt.limit;
     env->gdt.base = sregs.gdt.base;
 
-	qemu_printf("HEREEE!\n");
     env->cr[0] = sregs.cr0;
     env->cr[2] = sregs.cr2;
     env->cr[3] = sregs.cr3;
