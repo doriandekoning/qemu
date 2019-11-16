@@ -128,7 +128,7 @@ static bool get_trace_record(unsigned int idx, TraceRecord **recordptr)
  *
  * @wait        Whether to wait for writeout thread to complete
  */
-static void flush_trace_file(bool wait)
+void flush_trace_file(bool wait)
 {
     g_mutex_lock(&trace_lock);
     trace_available = true;
@@ -155,19 +155,19 @@ static void wait_for_trace_records_available(void)
 static gpointer writeout_thread(gpointer opaque)
 {
     TraceRecord *recordptr;
-    union {
+    /*union {
         TraceRecord rec;
         uint8_t bytes[sizeof(TraceRecord) + sizeof(uint64_t)];
-    } dropped;
+    } dropped;*/
     unsigned int idx = 0;
-    int dropped_count;
+    //int dropped_count;
     size_t unused __attribute__ ((unused));
     uint64_t type = TRACE_RECORD_TYPE_EVENT;
 
     for (;;) {
         wait_for_trace_records_available();
 
-        if (g_atomic_int_get(&dropped_events)) {
+       /* if (g_atomic_int_get(&dropped_events)) {
             dropped.rec.event = DROPPED_EVENT_ID;
             dropped.rec.timestamp_ns = get_clock();
             dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t);
@@ -179,7 +179,7 @@ static gpointer writeout_thread(gpointer opaque)
             dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
-        }
+        }*/
 
         while (get_trace_record(idx, &recordptr)) {
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
@@ -224,12 +224,13 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
         smp_rmb();
         new_idx = old_idx + rec_len;
 
-        if (new_idx - writeout_idx > TRACE_BUF_LEN) {
+//        if (new_idx - writeout_idx > TRACE_BUF_LEN) {
             /* Trace Buffer Full, Event dropped ! */
-            g_atomic_int_inc(&dropped_events);
+/*          g_atomic_int_inc(&dropped_events);
             return -ENOSPC;
-        }
-    } while (!g_atomic_int_compare_and_exchange(&trace_idx, old_idx, new_idx));
+        }*/
+//	usleep(10);
+    } while ((new_idx - writeout_idx > TRACE_BUF_LEN) || !g_atomic_int_compare_and_exchange(&trace_idx, old_idx, new_idx));
 
     idx = old_idx % TRACE_BUF_LEN;
 

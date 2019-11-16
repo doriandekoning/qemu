@@ -53,4 +53,6 @@ void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen
  */
 void trace_record_finish(TraceBufferRecord *rec);
 
+void flush_trace_file(bool wait);
+
 #endif /* TRACE_SIMPLE_H */

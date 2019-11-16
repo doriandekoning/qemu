@@ -1351,6 +1351,17 @@ static void hmp_acl_remove(Monitor *mon, const QDict *qdict)
     }
 }
 
+void hmp_flush_simpletrace_file(Monitor *mon, const QDict *qdict)
+{
+	#ifdef CONFIG_TRACE_SIMPLE
+        monitor_printf(mon, "Flushing simple tracefile!\n");
+	flush_trace_file(true);
+	monitor_printf(mon, "Flushed trace file!\n");
+	#else 
+	monitor_printf(mon, "Flushing the trace file can only be done for the simple trace backend!\n");
+	#endif
+}
+
 void qmp_getfd(const char *fdname, Error **errp)
 {
     mon_fd_t *monfd;
