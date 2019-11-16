@@ -67,6 +67,8 @@ def generate_c(event, group):
                 name=name)
             strsizeinfo = "4 + arg%s_len" % name
             sizes.append(strsizeinfo)
+        elif type_ == "uint8_t":
+            sizes.append("1")
         else:
             sizes.append("8")
     sizestr = " + ".join(sizes)
@@ -103,6 +105,8 @@ def generate_c(event, group):
                 out('    trace_record_write_u64(&rec, (uintptr_t)(uint64_t *)%(name)s);',
                     name=name)
             # primitive data type
+            elif type_ == "uint8_t":
+                out('    trace_record_write_u8(&rec, (uint8_t)%(name)s);', name=name);
             else:
                 out('    trace_record_write_u64(&rec, (uint64_t)%(name)s);',
                    name=name)

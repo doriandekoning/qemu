@@ -37,6 +37,11 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t id, size_t arglen);
 void trace_record_write_u64(TraceBufferRecord *rec, uint64_t val);
 
 /**
+ * Append a 8-bit argument to a trace record
+ */
+void trace_record_write_u8(TraceBufferRecord *rec, uint8_t val);
+
+/**
  * Append a string argument to a trace record
  */
 void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen);

@@ -2851,6 +2851,8 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
     memop = tcg_canonicalize_memop(memop, 0, 1);
     trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
 
+    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env,
+                               addr, trace_mem_get_info(memop, 1));
     if (!TCG_TARGET_HAS_MEMORY_BSWAP && (memop & MO_BSWAP)) {
         swap = tcg_temp_new_i32();
         switch (memop & MO_SIZE) {

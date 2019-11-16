@@ -65,9 +65,7 @@ typedef struct {
     uint64_t event; /* event ID value */
     uint64_t timestamp_ns;
     uint32_t length;   /*    in bytes */
-    uint32_t pid;
-    uint64_t arguments[];
-} TraceRecord;
+} __attribute__ ((packed)) TraceRecord;
 
 typedef struct {
     uint64_t header_event_id; /* HEADER_EVENT_ID */
@@ -201,6 +199,11 @@ void trace_record_write_u64(TraceBufferRecord *rec, uint64_t val)
     rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint64_t));
 }
 
+void trace_record_write_u8(TraceBufferRecord *rec, uint8_t val)
+{
+    rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint8_t));
+}
+
 void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen)
 {
     /* Write string length first */
@@ -213,7 +216,7 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, rec_off, old_idx, new_idx;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
-    uint64_t event_u64 = event;
+    uint64_t event_u64 = event;//(uint64_t)(event %  (1 << 8));
     uint64_t timestamp_ns = get_clock();
 
     do {
