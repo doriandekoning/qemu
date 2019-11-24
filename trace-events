@@ -159,7 +159,7 @@ vcpu guest_cpu_reset(void)
 #
 # Mode: user, softmmu
 # Targets: TCG(all)
-disable vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
 vcpu tcg guest_mem_store_before(TCGv vaddr, uint8_t info, TCGv_i64 data64) "info=%d", "vaddr=0x%016"PRIx64" info=%d data64=0x%016"PRIx64""
 
