@@ -45,7 +45,7 @@ static bool trace_available;
 static bool trace_writeout_enabled;
 
 enum {
-    TRACE_BUF_LEN = 4096 * 64 * 32,
+    TRACE_BUF_LEN = 4096 * 64,
     TRACE_BUF_FLUSH_THRESHOLD = TRACE_BUF_LEN / 4,
 };
 
@@ -63,9 +63,8 @@ static char *trace_file_name;
 /* * Trace buffer entry */
 typedef struct {
     uint32_t length;   /*    in bytes */
-    uint8_t type;
-    uint8_t event; /* event ID value */
     uint64_t timestamp_ns;
+    uint8_t event; /* event ID value */
 } __attribute__ ((packed)) TraceRecord;
 
 typedef struct {
@@ -99,15 +98,14 @@ static void clear_buffer_range(unsigned int idx, size_t len)
  */
 static bool get_trace_record(unsigned int idx, TraceRecord **recordptr)
 {
-    uint64_t event_flag = 0;
+    uint8_t event_flag = 0;
     TraceRecord record;
     /* read the event flag to see if its a valid record */
-    read_from_buffer(idx, &record, sizeof(event_flag));
+    read_from_buffer(idx + 12, &event_flag, sizeof(event_flag));
 
-    if (!(record.event & TRACE_RECORD_VALID)) {
+    if (!(event_flag & TRACE_RECORD_VALID)) {
         return false;
     }
-
     smp_rmb(); /* read memory barrier before accessing record */
     /* read the record header to know record length */
     read_from_buffer(idx, &record, sizeof(TraceRecord));
@@ -138,7 +136,6 @@ void flush_trace_file(bool wait)
     if (wait) {
         g_cond_wait(&trace_empty_cond, &trace_lock);
     }
-
     g_mutex_unlock(&trace_lock);
 }
 
@@ -168,7 +165,7 @@ static gpointer writeout_thread(gpointer opaque)
     for (;;) {
         wait_for_trace_records_available();
 
-       /* if (g_atomic_int_get(&dropped_events)) {
+        /* if (g_atomic_int_get(&dropped_events)) {
             dropped.rec.event = DROPPED_EVENT_ID;
             dropped.rec.timestamp_ns = get_clock();
             dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t);
@@ -176,14 +173,13 @@ static gpointer writeout_thread(gpointer opaque)
             do {
                 dropped_count = g_atomic_int_get(&dropped_events);
             } while (!g_atomic_int_compare_and_exchange(&dropped_events,
-                                                        dropped_count, 0));
+                                                            dropped_count, 0));
             dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }*/
 
         while (get_trace_record(idx, &recordptr)) {
-            recordptr->type = TRACE_RECORD_TYPE_EVENT;
             unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
@@ -224,21 +220,20 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
         smp_rmb();
         new_idx = old_idx + rec_len;
 
-//        if (new_idx - writeout_idx > TRACE_BUF_LEN) {
-            /* Trace Buffer Full, Event dropped ! */
-/*          g_atomic_int_inc(&dropped_events);
-            return -ENOSPC;
-        }*/
-//	usleep(10);
+    //        if (new_idx - writeout_idx > TRACE_BUF_LEN) {
+                /* Trace Buffer Full, Event dropped ! */
+    /*          g_atomic_int_inc(&dropped_events);
+                return -ENOSPC;
+            }*/
+    //	usleep(10);
     } while ((new_idx - writeout_idx > TRACE_BUF_LEN) || !g_atomic_int_compare_and_exchange(&trace_idx, old_idx, new_idx));
 
     idx = old_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
     rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len)); //Write: length -> 0
-    rec_off = write_to_buffer(rec_off, &event_u8, sizeof(event_u8)); //Write: eventid -> 1
     rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns));
-    rec_off = write_to_buffer(rec_off, &trace_pid, sizeof(trace_pid));
+    rec_off = write_to_buffer(rec_off, &event_u8, sizeof(event_u8)); //Write: eventid -> 1
     //Write: pid -> 0
 
     rec->tbuf_idx = idx;
@@ -264,7 +259,7 @@ static unsigned int write_to_buffer(unsigned int idx, void *dataptr, size_t size
     uint32_t x = 0;
     while (x < size) {
         if (idx >= TRACE_BUF_LEN) {
-            idx = idx % TRACE_BUF_LEN;
+             idx = idx % TRACE_BUF_LEN;
         }
         trace_buf[idx++] = data_ptr[x++];
     }
