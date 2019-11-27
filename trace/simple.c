@@ -160,8 +160,8 @@ static gpointer writeout_thread(gpointer opaque)
     unsigned int idx = 0;
     //int dropped_count;
     size_t unused __attribute__ ((unused));
-    //uint8_t type = TRACE_RECORD_TYPE_EVENT;
-
+    uint64_t prev_timestamp = 0;
+    uint64_t delta_t = 0;
     for (;;) {
         wait_for_trace_records_available();
 
@@ -180,7 +180,17 @@ static gpointer writeout_thread(gpointer opaque)
         }*/
 
         while (get_trace_record(idx, &recordptr)) {
-            unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
+
+            delta_t = recordptr->timestamp_ns - prev_timestamp;
+            prev_timestamp = recordptr->timestamp_ns;
+            recordptr->timestamp_ns = delta_t;
+            if(recordptr->timestamp_ns < (1 << 15)) {
+                recordptr->timestamp_ns |= (1<<15);
+                //Take 6 bytes ofset to write only 2 least significant bytes of
+                unused = fwrite(((uint8_t*)recordptr) + 10, (recordptr->length) - 10,  1, trace_fp);  //Offset for len (and subtract size)
+            }else{
+                unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
+            }
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
             idx = writeout_idx % TRACE_BUF_LEN;
