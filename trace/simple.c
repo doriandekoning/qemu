@@ -17,6 +17,7 @@
 #include "trace/simple.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
+#include <byteswap.h>
 
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
@@ -55,6 +56,7 @@ static unsigned int writeout_idx;
 static volatile gint dropped_events;
 static uint32_t trace_pid;
 static FILE *trace_fp;
+static FILE *trace_mapping_fp;
 static char *trace_file_name;
 
 #define TRACE_RECORD_TYPE_MAPPING 0
@@ -180,17 +182,26 @@ static gpointer writeout_thread(gpointer opaque)
         }*/
 
         while (get_trace_record(idx, &recordptr)) {
-
-            delta_t = recordptr->timestamp_ns - prev_timestamp;
+            if(recordptr->timestamp_ns < prev_timestamp){
+                delta_t = prev_timestamp -  recordptr->timestamp_ns;
+                recordptr->event |= (1 << 7);
+            }else{
+                delta_t = recordptr->timestamp_ns - prev_timestamp;
+                recordptr->event &= ~(1 << 7);
+            }
             prev_timestamp = recordptr->timestamp_ns;
             recordptr->timestamp_ns = delta_t;
-            if(recordptr->timestamp_ns < (1 << 15)) {
-                recordptr->timestamp_ns |= (1<<15);
+            if(recordptr->timestamp_ns <= (1 << 15)) {
+                recordptr->timestamp_ns &= ~(0x1 << 15);
+                recordptr->timestamp_ns = __bswap_64(recordptr->timestamp_ns);
                 //Take 6 bytes ofset to write only 2 least significant bytes of
                 unused = fwrite(((uint8_t*)recordptr) + 10, (recordptr->length) - 10,  1, trace_fp);  //Offset for len (and subtract size)
             }else{
+                recordptr->timestamp_ns |= (0x1ULL << 63);
+                recordptr->timestamp_ns = __bswap_64(recordptr->timestamp_ns);
                 unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
             }
+
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
             idx = writeout_idx % TRACE_BUF_LEN;
@@ -211,6 +222,11 @@ void trace_record_write_u8(TraceBufferRecord *rec, uint8_t val)
     rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint8_t));
 }
 
+void trace_record_write_u16(TraceBufferRecord *rec, uint16_t val)
+{
+    rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint16_t));
+}
+
 void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen)
 {
     /* Write string length first */
@@ -223,7 +239,7 @@ int trace_record_start(TraceBufferRecord *rec, uint32_t event, size_t datasize)
 {
     unsigned int idx, old_idx, new_idx, rec_off;
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
-    uint8_t event_u8 = (uint8_t)(event %  (1 << 7));
+    uint8_t event_u8 = (uint8_t)(event %  (1 << 5));
     uint64_t timestamp_ns = get_clock();
     do {
         old_idx = g_atomic_int_get(&trace_idx);
@@ -293,20 +309,18 @@ void trace_record_finish(TraceBufferRecord *rec)
 
 static int st_write_event_mapping(void)
 {
-    uint8_t type = TRACE_RECORD_TYPE_MAPPING;
     TraceEventIter iter;
     TraceEvent *ev;
 
     trace_event_iter_init(&iter, NULL);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         //uint64_t id = trace_event_get_id(ev);
-	uint8_t event_id = (uint8_t)(trace_event_get_id(ev) %  (1 << 7));
+	      uint8_t event_id = (uint8_t)(trace_event_get_id(ev) %  (1 << 5));
         const char *name = trace_event_get_name(ev);
         uint32_t len = strlen(name);
-        if (fwrite(&type, sizeof(type), 1, trace_fp) != 1 ||
-            fwrite(&event_id, sizeof(event_id), 1, trace_fp) != 1 ||
-            fwrite(&len, sizeof(len), 1, trace_fp) != 1 ||
-            fwrite(name, len, 1, trace_fp) != 1) {
+        if (fwrite(&event_id, sizeof(event_id), 1, trace_mapping_fp) != 1 ||
+            fwrite(&len, sizeof(len), 1, trace_mapping_fp) != 1 ||
+            fwrite(name, len, 1, trace_mapping_fp) != 1) {
             return -1;
         }
     }
@@ -338,6 +352,11 @@ void st_set_trace_file_enabled(bool enable)
             return;
         }
 
+        trace_mapping_fp = fopen("trace_mapping", "wb");
+        if(!trace_mapping_fp) {
+            return;
+        }
+
         if (fwrite(&header, sizeof header, 1, trace_fp) != 1 ||
             st_write_event_mapping() < 0) {
             fclose(trace_fp);
@@ -351,6 +370,8 @@ void st_set_trace_file_enabled(bool enable)
     } else {
         fclose(trace_fp);
         trace_fp = NULL;
+        fclose(trace_mapping_fp);
+        trace_mapping_fp = NULL;
     }
 }
 

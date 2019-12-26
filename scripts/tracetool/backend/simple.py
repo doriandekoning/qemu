@@ -67,8 +67,12 @@ def generate_c(event, group):
                 name=name)
             strsizeinfo = "4 + arg%s_len" % name
             sizes.append(strsizeinfo)
+        elif name == "__cpu":
+            sizes.append("1")
         elif type_ == "uint8_t":
             sizes.append("1")
+        elif type_ == "uint16_t":
+            sizes.append("2")
         else:
             sizes.append("8")
     sizestr = " + ".join(sizes)
@@ -101,12 +105,16 @@ def generate_c(event, group):
                 out('    trace_record_write_str(&rec, %(name)s, arg%(name)s_len);',
                     name=name)
             # pointer var (not string)
+            elif name == "__cpu":
+                out('    trace_record_write_u8(&rec, (uint8_t)%(name)s->cpu_index);', name=name) 
             elif type_.endswith('*'):
                 out('    trace_record_write_u64(&rec, (uintptr_t)(uint64_t *)%(name)s);',
                     name=name)
             # primitive data type
             elif type_ == "uint8_t":
                 out('    trace_record_write_u8(&rec, (uint8_t)%(name)s);', name=name);
+            elif type_ == "uint16_t":
+                out('    trace_record_write_u16(&rec, (uint16_t)%(name)s);', name=name);
             else:
                 out('    trace_record_write_u64(&rec, (uint64_t)%(name)s);',
                    name=name)

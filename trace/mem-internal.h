@@ -50,7 +50,7 @@ static inline uint16_t trace_mem_get_info(MemOp op,
 /* Used by the atomic helpers */
 static inline
 uint16_t trace_mem_build_info_no_se_be(int size_shift, bool store,
-                                       TCGMemOpIdx oi)
+                                      TCGMemOpIdx oi)
 {
     return trace_mem_build_info(size_shift, false, MO_BE, store,
                                 get_mmuidx(oi));
