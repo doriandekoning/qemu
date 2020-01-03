@@ -181,6 +181,10 @@ void helper_lmsw(CPUX86State *env, target_ulong t0)
 void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
     X86CPU *cpu = env_archcpu(env);
+    trace_guest_flush_tlb_invlpg((uint8_t)env_cpu(env)->cpu_index, addr);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
+    tlb_flush_page(CPU(cpu), addr);
+}
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
     tlb_flush_page(CPU(cpu), addr);

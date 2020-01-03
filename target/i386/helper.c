@@ -627,7 +627,6 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
     X86CPU *cpu = env_archcpu(env);
     int pe_state;
 
-    trace_guest_update_cr(env_cpu(env), 0, new_cr0);
     qemu_log_mask(CPU_LOG_MMU, "CR0 update: CR0=0x%08x\n", new_cr0);
     if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
@@ -653,6 +652,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 #endif
     env->cr[0] = new_cr0 | CR0_ET_MASK;
 
+    trace_guest_update_cr(env_cpu(env), 0, new_cr0 | CR0_ET_MASK);
     /* update PE flag in hidden flags */
     pe_state = (env->cr[0] & CR0_PE_MASK);
     env->hflags = (env->hflags & ~HF_PE_MASK) | (pe_state << HF_PE_SHIFT);
@@ -680,7 +680,6 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 {
     uint32_t hflags;
 
-    trace_guest_update_cr(env_cpu(env), 4, new_cr4);
 #if defined(DEBUG_MMU)
     printf("CR4 update: %08x -> %08x\n", (uint32_t)env->cr[4], new_cr4);
 #endif
@@ -712,6 +711,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
         new_cr4 &= ~CR4_PKE_MASK;
     }
 
+    trace_guest_update_cr(env_cpu(env), 4, new_cr4);
     env->cr[4] = new_cr4;
     env->hflags = hflags;
 
