@@ -2808,11 +2808,10 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
     uint16_t info = trace_mem_get_info(memop, idx, 0);
+    TCGv physaddr = tcg_temp_new();
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
-    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
-    trace_guest_mem_load_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
     orig_memop = memop;
     if (!TCG_TARGET_HAS_MEMORY_BSWAP && (memop & MO_BSWAP)) {
         memop &= ~MO_BSWAP;
@@ -2823,6 +2822,17 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     gen_ldst_i32(INDEX_op_qemu_ld_i32, val, addr, memop, idx);
+
+    // Trace the event
+    TCGv_i32 mmu_idx_i32 = tcg_const_i32(info >> 8);
+    TCGv_i32 write_i32 = tcg_const_i32(0);
+    gen_helper_lookup_tlb_informational(physaddr, cpu_env, mmu_idx_i32, write_i32, addr);
+    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
+    trace_guest_mem_load_before_tcg(tcg_ctx->cpu, cpu_env, addr, physaddr, info, 3);
+    tcg_temp_free_i32(mmu_idx_i32);
+    tcg_temp_free_i32(write_i32);
+    tcg_temp_free(physaddr);
+
     plugin_gen_mem_callbacks(addr, info);
 
     if ((orig_memop ^ memop) & MO_BSWAP) {
@@ -2846,6 +2856,8 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     TCGv_i32 swap = NULL;
     TCGv_i64 swap_i64 = NULL;
+    TCGv physaddr = tcg_temp_new();
+    TCGv_i64 cr3_value = tcg_temp_new_i64();
     uint16_t info = trace_mem_get_info(memop, idx, 1);
 
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
@@ -2868,12 +2880,29 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
         memop &= ~MO_BSWAP;
     }
     swap_i64 = tcg_temp_new_i64();
-    tcg_gen_ext_i32_i64(swap_i64, val);
-    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
-    trace_guest_mem_store_before_tcg(tcg_ctx->cpu, cpu_env, addr, info, swap_i64);
-    tcg_temp_free_i64(swap_i64);
+    tcg_gen_extu_i32_i64(swap_i64, val);
+
     gen_ldst_i32(INDEX_op_qemu_st_i32, val, addr, memop, idx);
+
+    //Trace access
+    TCGv_i32 mmu_idx_i32 = tcg_const_i32(info >> 8);
+    TCGv_i32 write_i32 = tcg_const_i32(1);
+    gen_helper_lookup_tlb_informational(physaddr, cpu_env, mmu_idx_i32, write_i32, addr);
+    gen_helper_get_cr3_value(cr3_value, cpu_env);
+    trace_guest_mem_store_before_tcg(tcg_ctx->cpu, cpu_env, addr, physaddr, info, 1, swap_i64, cr3_value);
+    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
+    tcg_temp_free_i32(mmu_idx_i32);
+    tcg_temp_free_i32(write_i32);
+    tcg_temp_free(physaddr);
+    tcg_temp_free_i64(cr3_value);
+
+
+    tcg_temp_free_i64(swap_i64);
+
     plugin_gen_mem_callbacks(addr, info);
+
+
+
 
     if (swap) {
         tcg_temp_free_i32(swap);
@@ -2883,7 +2912,8 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
-    uint16_t info;
+    uint16_t info = trace_mem_get_info(memop, idx, 0);
+    TCGv physaddr = tcg_temp_new();
 
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);
@@ -2897,9 +2927,7 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 1, 0);
-    info = trace_mem_get_info(memop, idx, 0);
-    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
-    trace_guest_mem_load_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
+
     orig_memop = memop;
     if (!TCG_TARGET_HAS_MEMORY_BSWAP && (memop & MO_BSWAP)) {
         memop &= ~MO_BSWAP;
@@ -2910,6 +2938,17 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     gen_ldst_i64(INDEX_op_qemu_ld_i64, val, addr, memop, idx);
+
+    // Trace the event
+    TCGv_i32 mmu_idx_i32 = tcg_const_i32(info >> 8);
+    TCGv_i32 write_i32 = tcg_const_i32(0);
+    gen_helper_lookup_tlb_informational(physaddr, cpu_env, mmu_idx_i32, write_i32, addr);
+    tcg_temp_free_i32(mmu_idx_i32);
+    tcg_temp_free_i32(write_i32);
+    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
+    trace_guest_mem_load_before_tcg(tcg_ctx->cpu, cpu_env, addr, physaddr, info, 2);
+    tcg_temp_free(physaddr);
+
     plugin_gen_mem_callbacks(addr, info);
 
     if ((orig_memop ^ memop) & MO_BSWAP) {
@@ -2939,6 +2978,9 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     TCGv_i64 swap = NULL;
     uint16_t info;
+    TCGv physaddr = tcg_temp_new();
+    TCGv cr3_value = tcg_temp_new_i64();
+
 
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_st_i32(TCGV_LOW(val), addr, idx, memop);
@@ -2947,7 +2989,7 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     memop = tcg_canonicalize_memop(memop, 1, 1);
-    
+
     if (!TCG_TARGET_HAS_MEMORY_BSWAP && (memop & MO_BSWAP)) {
         swap = tcg_temp_new_i64();
         switch (memop & MO_SIZE) {
@@ -2969,11 +3011,23 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
         memop &= ~MO_BSWAP;
     }
     info = trace_mem_get_info(memop, idx, 1);
-    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
-    trace_guest_mem_store_before_tcg(tcg_ctx->cpu, cpu_env, addr, info, val);
 
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
+
+    //Trace access
+    TCGv_i32 mmu_idx_i32 = tcg_const_i32(info >> 8);
+    TCGv_i32 write_i32 = tcg_const_i32(1);
+    gen_helper_lookup_tlb_informational(physaddr, cpu_env, mmu_idx_i32, write_i32, addr);
+    gen_helper_get_cr3_value(cr3_value, cpu_env);
+    trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, addr, info);
+    trace_guest_mem_store_before_tcg(tcg_ctx->cpu, cpu_env, addr, physaddr, info, 0, val, cr3_value);
+    tcg_temp_free(physaddr);
+    tcg_temp_free_i32(mmu_idx_i32);
+    tcg_temp_free_i32(write_i32);
+    tcg_temp_free_i64(cr3_value);
+
     plugin_gen_mem_callbacks(addr, info);
+
 
     if (swap) {
         tcg_temp_free_i64(swap);

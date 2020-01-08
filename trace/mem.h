@@ -30,6 +30,10 @@ static uint16_t trace_mem_build_info(int size_shift, bool sign_extend,
                                      unsigned int mmuidx);
 
 
+
+static uint64_t lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t store, uint64_t vaddr);
+
+
 #include "trace/mem-internal.h"
 
 #endif /* TRACE__MEM_H */

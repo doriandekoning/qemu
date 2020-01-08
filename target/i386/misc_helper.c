@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/address-spaces.h"
+#include "trace/mem.h"
 
 void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {
@@ -182,10 +183,6 @@ void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
     X86CPU *cpu = env_archcpu(env);
     trace_guest_flush_tlb_invlpg((uint8_t)env_cpu(env)->cpu_index, addr);
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
-    tlb_flush_page(CPU(cpu), addr);
-}
-
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
     tlb_flush_page(CPU(cpu), addr);
 }
@@ -644,4 +641,12 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
 
     env->pkru = val;
     tlb_flush(cs);
+}
+
+uint64_t helper_lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t store, uint64_t vaddr) {
+    return lookup_tlb_informational(env, mmuidx,store, vaddr);
+}
+
+uint64_t helper_get_cr3_value(CPUX86State *env) {
+    return env->cr[3];
 }

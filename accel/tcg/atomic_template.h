@@ -82,14 +82,14 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
     uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false,
                                                            ATOMIC_MMU_IDX);
 
-    atomic_trace_rmw_pre(env, addr, info, newv);
+    atomic_trace_rmw_pre(env, addr, info);
 #if DATA_SIZE == 16
     ret = atomic16_cmpxchg(haddr, cmpv, newv);
 #else
     ret = atomic_cmpxchg__nocheck(haddr, cmpv, newv);
 #endif
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr, info);
+    atomic_trace_rmw_post(env, addr, info, newv);
     return ret;
 }
 
@@ -117,10 +117,10 @@ void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
     uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, true,
                                                           ATOMIC_MMU_IDX);
 
-    atomic_trace_st_pre(env, addr, info, val);
+    atomic_trace_st_pre(env, addr, info);
     atomic16_set(haddr, val);
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_st_post(env, addr, info);
+    atomic_trace_st_post(env, addr, info, val);
 }
 #endif
 #else
@@ -133,10 +133,10 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
     uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false,
                                                           ATOMIC_MMU_IDX);
 
-    atomic_trace_rmw_pre(env, addr, info, val);
+    atomic_trace_rmw_pre(env, addr, info);
     ret = atomic_xchg__nocheck(haddr, val);
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr, info);
+    atomic_trace_rmw_post(env, addr, info, val);
     return ret;
 }
 
@@ -151,10 +151,10 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                                                            false,   \
                                                            ATOMIC_MMU_IDX); \
                                                                     \
-    atomic_trace_rmw_pre(env, addr, info, val);                     \
+    atomic_trace_rmw_pre(env, addr, info);                          \
     ret = atomic_##X(haddr, val);                                   \
     ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr, info);                         \
+    atomic_trace_rmw_post(env, addr, info, val);                    \
     return ret;                                                     \
 }
 
@@ -187,7 +187,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                                                            false,   \
                                                            ATOMIC_MMU_IDX); \
                                                                     \
-    atomic_trace_rmw_pre(env, addr, info, xval);                    \
+    atomic_trace_rmw_pre(env, addr, info);                          \
     smp_mb();                                                       \
     cmp = atomic_read__nocheck(haddr);                              \
     do {                                                            \
@@ -195,7 +195,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
         cmp = atomic_cmpxchg__nocheck(haddr, old, new);             \
     } while (cmp != old);                                           \
     ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr, info);                         \
+    atomic_trace_rmw_post(env, addr, info, xval);                   \
     return RET;                                                     \
 }
 
@@ -237,14 +237,14 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
                                                            false,
                                                            ATOMIC_MMU_IDX);
 
-    atomic_trace_rmw_pre(env, addr, info, newv);
+    atomic_trace_rmw_pre(env, addr, info);
 #if DATA_SIZE == 16
     ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(newv));
 #else
     ret = atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
 #endif
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr, info);
+    atomic_trace_rmw_post(env, addr, info, BSWAP(newv));
     return BSWAP(ret);
 }
 
@@ -275,11 +275,11 @@ void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
                                                            ATOMIC_MMU_IDX);
 
     val = BSWAP(val);
-    atomic_trace_st_pre(env, addr, info, val);
+    atomic_trace_st_pre(env, addr, info);
     val = BSWAP(val);
     atomic16_set(haddr, val);
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_st_post(env, addr, info);
+    atomic_trace_st_post(env, addr, info, val);
 }
 #endif
 #else
@@ -293,10 +293,10 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
                                                            false,
                                                            ATOMIC_MMU_IDX);
 
-    atomic_trace_rmw_pre(env, addr, info, val);
+    atomic_trace_rmw_pre(env, addr, info);
     ret = atomic_xchg__nocheck(haddr, BSWAP(val));
     ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr, info);
+    atomic_trace_rmw_post(env, addr, info, val);
     return BSWAP(ret);
 }
 
@@ -311,10 +311,10 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                                                            false,   \
                                                            ATOMIC_MMU_IDX); \
                                                                     \
-    atomic_trace_rmw_pre(env, addr, info, val);                     \
+    atomic_trace_rmw_pre(env, addr, info);                          \
     ret = atomic_##X(haddr, BSWAP(val));                            \
     ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr, info);                         \
+    atomic_trace_rmw_post(env, addr, info, val);                    \
     return BSWAP(ret);                                              \
 }
 
@@ -345,7 +345,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                                                            false,   \
                                                            ATOMIC_MMU_IDX); \
                                                                     \
-    atomic_trace_rmw_pre(env, addr, info, val);                     \
+    atomic_trace_rmw_pre(env, addr, info);                          \
     smp_mb();                                                       \
     ldn = atomic_read__nocheck(haddr);                              \
     do {                                                            \
@@ -353,7 +353,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
         ldn = atomic_cmpxchg__nocheck(haddr, ldo, BSWAP(new));      \
     } while (ldo != ldn);                                           \
     ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr, info);                         \
+    atomic_trace_rmw_post(env, addr, info, val);                    \
     return RET;                                                     \
 }
 

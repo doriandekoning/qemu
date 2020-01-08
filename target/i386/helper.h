@@ -228,3 +228,8 @@ DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
 
 DEF_HELPER_1(rdrand, tl, env)
+
+#ifdef TARGET_X86_64
+DEF_HELPER_4(lookup_tlb_informational, tl, env, i32, i32, tl)
+DEF_HELPER_1(get_cr3_value, i64, env)
+#endif

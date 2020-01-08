@@ -300,7 +300,7 @@ void trace_record_finish(TraceBufferRecord *rec)
     smp_wmb(); /* write barrier before marking as valid */
     record.event |= TRACE_RECORD_VALID;
     write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
-    
+
     if (((unsigned int)g_atomic_int_get(&trace_idx) - writeout_idx)
         > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);

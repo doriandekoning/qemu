@@ -64,4 +64,19 @@ uint16_t trace_mem_build_info_no_se_le(int size_shift, bool store,
                                 get_mmuidx(oi));
 }
 
+static inline
+uint64_t lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t store, uint64_t vaddr) {
+    CPUTLBEntry *tlbe = tlb_entry(env, mmuidx, vaddr);
+    // uintptr_t index = tlb_index(env, mmuidx, addr);
+    uint64_t tlbe_addr = store ? tlb_addr_write(tlbe) : tlbe->addr_read;
+    if (likely(tlb_hit(tlbe_addr, vaddr))) {
+        //TODO check if IO
+        // printf("%016lx,\t%016lx+%016lx\n", physaddr, vaddr, tlbe->addend);
+        return (tlbe_addr & ~(0xfff)) | (vaddr & 0xfff);
+        // return vaddr + tlbe->addend;
+
+    }
+    return 1ULL << 52;
+}
+
 #endif /* TRACE__MEM_INTERNAL_H */
