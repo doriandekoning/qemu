@@ -161,9 +161,12 @@ vcpu guest_cpu_reset(void)
 # Targets: TCG(all)
 vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
-vcpu tcg guest_mem_store_before(TCGv vaddr, TCGv physaddr, uint16_t info, uint8_t location, TCGv_i64 data64, TCGv_i64 cr3value) "info=%d", "vaddr=0x%016"PRIx64" info=%d data64=0x%016"PRIx64""
 
-vcpu tcg guest_mem_load_before(TCGv vaddr, TCGv physaddr, uint16_t info, uint8_t location) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+#vcpu tcg guest_mem_store_before(TCGv vaddr, TCGv physaddr, uint16_t info, uint8_t location, TCGv_i64 data64, TCGv_i64 cr3value) "info=%d", "vaddr=0x%016"PRIx64" info=%d data64=0x%016"PRIx64""
+vcpu tcg guest_mem_store_before(TCGv vaddr, uint16_t info, TCGv_i64 data64) "info=%d", "vaddr=0x%016"PRIx64" info=%d data64=0x%016"PRIx64""
+
+# vcpu tcg guest_mem_load_before(TCGv vaddr, TCGv physaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+vcpu tcg guest_mem_load_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
 guest_flush_tlb_invlpg(uint64_t vaddr, uint8_t cpu_id) "vaddr=0x%016"PRIx64" cpu=%d"
 
