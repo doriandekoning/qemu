@@ -170,6 +170,8 @@ vcpu tcg guest_mem_load_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%0
 
 guest_flush_tlb_invlpg(uint64_t vaddr, uint8_t cpu_id) "vaddr=0x%016"PRIx64" cpu=%d"
 
+guest_start_exec_tb(uint8_t cpu_id, uint64_t pc, uint16_t size)
+
 # This event is actually only for targets/i386 but since the vcpu property is only tolerated in this (the root) trace-events file it is placed here
 vcpu guest_update_cr(uint8_t regsiter_num, uint64_t new_value) "cr%d new_value=0x%016"PRIx64""
 # linux-user/syscall.c

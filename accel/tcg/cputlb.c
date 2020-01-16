@@ -1269,7 +1269,7 @@ bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
     target_ulong tlb_addr = is_store ? tlb_addr_write(tlbe) : tlbe->addr_read;
 
     if (likely(tlb_hit(tlb_addr, addr))) {
-        /* We must have an iotlb entry for MMIO */gr
+        /* We must have an iotlb entry for MMIO */
         if (tlb_addr & TLB_MMIO) {
             CPUIOTLBEntry *iotlbentry;
             iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];

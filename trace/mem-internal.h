@@ -10,6 +10,9 @@
 #ifndef TRACE__MEM_INTERNAL_H
 #define TRACE__MEM_INTERNAL_H
 
+#include "exec/cpu_ldst.h"
+
+
 #define TRACE_MEM_SZ_SHIFT_MASK 0xf /* size shift mask */
 #define TRACE_MEM_SE (1ULL << 4)    /* sign extended (y/n) */
 #define TRACE_MEM_BE (1ULL << 5)    /* big endian (y/n) */
@@ -64,6 +67,7 @@ uint16_t trace_mem_build_info_no_se_le(int size_shift, bool store,
                                 get_mmuidx(oi));
 }
 
+#ifdef CONFIG_SOFTMMU
 static inline
 uint64_t lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t store, uint64_t vaddr) {
     CPUTLBEntry *tlbe = tlb_entry(env, mmuidx, vaddr);
@@ -78,5 +82,5 @@ uint64_t lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t st
     }
     return 1ULL << 52;
 }
-
+#endif /* CONFIG_SOFTMMU */
 #endif /* TRACE__MEM_INTERNAL_H */

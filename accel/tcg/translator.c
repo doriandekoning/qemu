@@ -17,6 +17,7 @@
 #include "exec/log.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
+#include "trace/helper.h"
 
 /* Pairs with tcg_clear_temp_count.
    To be called by #TranslatorOps.{translate_insn,tb_stop} if
@@ -56,7 +57,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     gen_tb_start(db->tb);
     ops->tb_start(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
-
+    gen_helper_trace_tb_start_exec(cpu_env, tcg_const_i64((uint64_t)db->tb));
     plugin_enabled = plugin_gen_tb_start(cpu, tb);
 
     while (true) {

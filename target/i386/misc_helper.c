@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/address-spaces.h"
 #include "trace/mem.h"
+#include "disas/disas.h"
 
 void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {
@@ -643,10 +644,17 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
     tlb_flush(cs);
 }
 
+#ifdef CONFIG_SOFTMMU
 uint64_t helper_lookup_tlb_informational(CPUX86State *env, uint32_t mmuidx, uint32_t store, uint64_t vaddr) {
     return lookup_tlb_informational(env, mmuidx,store, vaddr);
 }
+#endif /*CONFIG_SOFTMMU*/
 
 uint64_t helper_get_cr3_value(CPUX86State *env) {
     return env->cr[3];
+}
+
+void helper_trace_tb_start_exec(CPUX86State *env, uint64_t tb_ptr) {
+    // printf("Instruction fetch for pc:%lx of size: %u for cpu: %d, %s\n", ((TranslationBlock*)tb_ptr)->pc, ((TranslationBlock*)tb_ptr)->size,(uint8_t)env_cpu(env)->cpu_index, lookup_symbol(((TranslationBlock*)tb_ptr)->pc));
+    trace_guest_start_exec_tb((uint8_t)env_cpu(env)->cpu_index, ((TranslationBlock*)tb_ptr)->pc, ((TranslationBlock*)tb_ptr)->size);
 }

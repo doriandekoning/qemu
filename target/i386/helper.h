@@ -229,7 +229,12 @@ DEF_HELPER_3(rcrq, tl, env, tl, tl)
 
 DEF_HELPER_1(rdrand, tl, env)
 
-#ifdef TARGET_X86_64
+#if TARGET_X86_64
+#ifdef CONFIG_SOFTMMU
 DEF_HELPER_4(lookup_tlb_informational, tl, env, i32, i32, tl)
+#endif /* CONFIG_SOFTMMU */
 DEF_HELPER_1(get_cr3_value, i64, env)
-#endif
+#endif /* TARGET_X86_64 */
+
+
+DEF_HELPER_2(trace_tb_start_exec, void, env, i64)
