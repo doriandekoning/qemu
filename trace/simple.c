@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
 #include <byteswap.h>
+#include <semaphore.h>
 
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
@@ -58,6 +59,7 @@ static uint32_t trace_pid;
 static FILE *trace_fp;
 static FILE *trace_mapping_fp;
 static char *trace_file_name;
+
 
 #define TRACE_RECORD_TYPE_MAPPING 0
 #define TRACE_RECORD_TYPE_EVENT   1
@@ -324,7 +326,6 @@ static int st_write_event_mapping(void)
             return -1;
         }
     }
-
     return 0;
 }
 
@@ -333,7 +334,6 @@ void st_set_trace_file_enabled(bool enable)
     if (enable == !!trace_fp) {
         return; /* no change */
     }
-
     /* Halt trace writeout */
     flush_trace_file(true);
     trace_writeout_enabled = false;
@@ -354,15 +354,16 @@ void st_set_trace_file_enabled(bool enable)
 
         trace_mapping_fp = fopen("trace_mapping", "wb");
         if(!trace_mapping_fp) {
+            qemu_printf("Could not open trace mapping file!\n");
             return;
         }
-
         if (fwrite(&header, sizeof header, 1, trace_fp) != 1 ||
             st_write_event_mapping() < 0) {
             fclose(trace_fp);
             trace_fp = NULL;
             return;
         }
+        qemu_printf("Written mapping!\n");
 
         /* Resume trace writeout */
         trace_writeout_enabled = true;
