@@ -23,6 +23,8 @@
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
 
+// #define SHARED_MEM 1
+
 /** Trace file magic number */
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
 
@@ -166,6 +168,79 @@ static gpointer writeout_thread(gpointer opaque)
     size_t unused __attribute__ ((unused));
     uint64_t prev_timestamp = 0;
     uint64_t delta_t = 0;
+    size_t recordptr_start_offset = 0;
+
+
+#ifdef SHARED_MEM
+    sem_t *sem_write_1, *sem_write_2, *sem_read_1, *sem_read_2; //TODO clean these up some way
+
+    //Open semaphores //TODO define guard this
+    sem_write_1 = sem_open("/qemu_st_sem_write_1", O_CREAT, S_IRWXU, 1);
+    if (sem_write_1 == NULL) {
+        printf("Error opening write semaphore!");
+        return NULL;
+    }
+    sem_write_2 = sem_open("/qemu_st_sem_write_2", O_CREAT, S_IRWXU, 1);
+    if (sem_write_2 == NULL) {
+        printf("Error opening write semaphore!");
+        return NULL;
+    }
+
+    uint64_t buffer_size = 1024*1024*8;
+
+    sem_read_1 = sem_open("/qemu_st_sem_read_1", O_CREAT, S_IRWXU, 0);
+    if (sem_read_1 == NULL) {
+        printf("Error opening read semaphore!");
+        return NULL;
+    }
+    sem_read_2 = sem_open("/qemu_st_sem_read_2", O_CREAT, S_IRWXU, 0);
+    if (sem_read_2 == NULL) {
+        printf("Error opening read semaphore!");
+        return NULL;
+    }
+    // Setup shared memory region
+    int out_buffer_1 = shm_open("/qemu_simple_trace_buffer_1", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
+    if (out_buffer_1 < 0) {
+        printf("In shm_open() of buffer 1");
+        return NULL;
+    }
+
+    // Resize file
+    if(ftruncate(out_buffer_1, buffer_size) < 0){
+        printf("Unable to truncate file!\n");
+        exit(1);
+    }
+
+    void* out_1 = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, out_buffer_1, 0);
+    if(out_1 == NULL) {
+        printf("Unable to mmap shared mem!\n");
+        return NULL;
+    }
+
+        // Setup shared memory region
+    int out_buffer_2 = shm_open("/qemu_simple_trace_buffer_2", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
+    if (out_buffer_2 < 0) {
+        printf("In shm_open() of buffer 2");
+        return NULL;
+    }
+
+    // Resize file
+    if(ftruncate(out_buffer_2, buffer_size) < 0){
+        printf("Unable to truncate file!\n");
+        exit(1);
+    }
+
+    void* out_2 = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, out_buffer_2, 0);
+    if(out_2 == NULL) {
+        printf("Unable to mmap shared mem!\n");
+        return NULL;
+    }
+
+    uint64_t cur_buffer_offset = 0;
+    void* cur_buffer = out_1;
+    bool using_buf1 = true;
+    sem_wait(sem_write_1);
+#endif /*SHARED_MEM*/
     for (;;) {
         wait_for_trace_records_available();
 
@@ -182,7 +257,6 @@ static gpointer writeout_thread(gpointer opaque)
             unused = fwrite(&type, sizeof(type), 1, trace_fp);
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }*/
-
         while (get_trace_record(idx, &recordptr)) {
             if(recordptr->timestamp_ns < prev_timestamp){
                 delta_t = prev_timestamp -  recordptr->timestamp_ns;
@@ -195,14 +269,42 @@ static gpointer writeout_thread(gpointer opaque)
             recordptr->timestamp_ns = delta_t;
             if(recordptr->timestamp_ns <= (1 << 15)) {
                 recordptr->timestamp_ns &= ~(0x1 << 15);
-                recordptr->timestamp_ns = __bswap_64(recordptr->timestamp_ns);
                 //Take 6 bytes ofset to write only 2 least significant bytes of
-                unused = fwrite(((uint8_t*)recordptr) + 10, (recordptr->length) - 10,  1, trace_fp);  //Offset for len (and subtract size)
+                recordptr_start_offset = 10;
             }else{
                 recordptr->timestamp_ns |= (0x1ULL << 63);
-                recordptr->timestamp_ns = __bswap_64(recordptr->timestamp_ns);
-                unused = fwrite(((uint8_t*)recordptr) + 4, (recordptr->length) - 4,  1, trace_fp);  //Offset for len (and subtract size)
+                recordptr_start_offset = 4;
             }
+            recordptr->timestamp_ns = __bswap_64(recordptr->timestamp_ns);
+            #ifndef SHARED_MEM
+            unused = fwrite(((uint8_t*)recordptr) + recordptr_start_offset, (recordptr->length) - recordptr_start_offset,  1, trace_fp);  //Offset for len (and subtract size)
+            #endif
+            #ifdef SHARED_MEM
+            if(cur_buffer_offset + (recordptr->length - recordptr_start_offset) < buffer_size) {
+                    memcpy(((uint8_t*)cur_buffer) + cur_buffer_offset, ((uint8_t*)recordptr) + recordptr_start_offset, recordptr->length - recordptr_start_offset);
+                    cur_buffer_offset += ((recordptr->length) - recordptr_start_offset);
+            }else{
+                //write as much as possible in old buffer
+                uint8_t bytes_old_buffer = buffer_size - cur_buffer_offset;
+                uint8_t bytes_new_buffer = recordptr->length - recordptr_start_offset - bytes_old_buffer;
+                memcpy(((uint8_t*)cur_buffer) + cur_buffer_offset, ((uint8_t*)recordptr) + recordptr_start_offset, bytes_old_buffer);
+                // printf("%04lx\t%04x\t%04x\n", delta_t, ((uint8_t*)recordptr)[10], ((uint8_t*)recordptr)[11]);
+                if(using_buf1) {
+                    sem_post(sem_read_1);//TODO only when buffer is full
+                    sem_wait(sem_write_2);
+                    cur_buffer = out_2;
+                }else{
+                    sem_post(sem_read_2);
+                    sem_wait(sem_write_1);
+                    cur_buffer = out_1;
+                }
+                using_buf1 = !using_buf1;
+                memcpy(((uint8_t*)cur_buffer), ((uint8_t*)recordptr) + recordptr_start_offset + bytes_old_buffer, bytes_new_buffer);
+                cur_buffer_offset = bytes_new_buffer;
+            }
+            #endif
+            // printf("Posting!%lu/%lu\n", cur_buffer_offset, buffer_size);
+
 
             writeout_idx += recordptr->length;
             free(recordptr); /* don't use g_free, can deadlock when traced */
