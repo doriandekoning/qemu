@@ -871,7 +871,7 @@ ETEXI
 
     {
         .name       = "pmemsave",
-        .args_type  = "val:l,size:i,filename:s",
+        .args_type  = "val:l,size:l,filename:s",
         .params     = "addr size file",
         .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
         .cmd        = hmp_pmemsave,
@@ -1957,11 +1957,11 @@ ETEXI
     },
 
 STEXI
-@item flush-trace 
+@item flush-trace
 Flush the trace file (for simple trace backend)
 ETEXI
 
-    { 
+    {
         .name       = "flush-simple-trace-file",
         .args_type  = "",
         .params     = "",
