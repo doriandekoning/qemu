@@ -381,7 +381,7 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env)
     uint64_t l1, l2, l3, l4;
     uint64_t pml4e, pdpe, pde, pte;
     uint64_t pml4_addr, pdp_addr, pd_addr, pt_addr, start, end;
-	
+
     pml4_addr = env->cr[3] & 0x3fffffffff000ULL;
     last_prot = 0;
     start = -1;
@@ -734,7 +734,7 @@ void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 //		return;
 //	}
 	//Check if PAE is enabled, Long mode is disabled and 5 level paging
-	//disabled 
+	//disabled
 	//TODO cr4 as param
 	if((env->cr[4] & CR4_PAE_MASK) && (env->hflags & HF_LMA_MASK) && !(env->cr[4] & CR4_LA57_MASK)){
 		monitor_printf(mon, "Yes!\n");
@@ -744,25 +744,15 @@ void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 	}
 	path = qdict_get_str(qdict, "path");
 
-	f = fopen(path, "wb");
-	if(!f){
-		monitor_printf(mon, "Could not open file!\n");
-		return;
-	}
+
 	uint64_t cr3 = qdict_get_int(qdict, "cr3");
 	//L1
 	uint64_t l1_addr = cr3 & 0x3fffffffff000ULL;
-	if (fwrite(&l1_addr, 8, 1, f) != 1) {
-		monitor_printf(mon, "Could not write cr3\n");
-		return;
-	}
+
 	monitor_printf(mon, "Written 8 bytes to file!\n");
 	uint64_t buffer[512];
 	cpu_physical_memory_read(l1_addr, buffer, 512 * 8);
-	if (fwrite(buffer, 8, 512, f) != 512) {
-		monitor_printf(mon, "Could not write l1\n");
-		return;
-	}
+    bool file_open = false;
 	//L2
 	monitor_printf(mon, "Dumping L2 tables!\n");
 	uint64_t l2_buffer[512];
@@ -771,6 +761,22 @@ void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 	for(int l1 = 0; l1 < 512; l1++) {
 		uint64_t l1_entry = le64_to_cpu(buffer[l1]);
 		if ( l1_entry & PG_PRESENT_MASK) {
+            if(!file_open) {
+                f = fopen(path, "wb");
+                if(!f){
+                    monitor_printf(mon, "Could not open file!\n");
+                    return;
+                }
+                if (fwrite(&l1_addr, 8, 1, f) != 1) {
+		            monitor_printf(mon, "Could not write cr3\n");
+		            return;
+	            }
+                if (fwrite(buffer, 8, 512, f) != 512) {
+		            monitor_printf(mon, "Could not write l1\n");
+		            return;
+	            }
+                file_open = true;
+            }
 			uint64_t l1_entry_addr = l1_entry & 0x3fffffffff000ULL;
 			//monitor_printf(mon, "L1: phys: 0x%010lx, index: %lx\n", l1_entry_addr, l1_entry);
 			cpu_physical_memory_read(l1_entry_addr, l2_buffer, 512*8);
@@ -817,7 +823,7 @@ void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 							if(fwrite(l4_buffer, 8, 512, f) != 512) {
 								monitor_printf(mon, "Could not write l4\n");
 								return;
-		                                        }
+                            }
 						}
 					}
 				}
@@ -825,9 +831,9 @@ void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 		}
 	}
 	monitor_printf(mon, "Amount of subtables:\nL2:\t%d\nL3: \t%d\nL4: \t%d\n\n", num_l2, num_l3, num_l4);
-	fclose(f);
-
-
+    if(file_open) {
+	    fclose(f);
+    }
 }
 
 
