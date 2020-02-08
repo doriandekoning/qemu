@@ -23,7 +23,7 @@
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
 
-// #define SHARED_MEM 1
+#define SHARED_MEM 1
 
 /** Trace file magic number */
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
@@ -172,15 +172,16 @@ static gpointer writeout_thread(gpointer opaque)
 
 
 #ifdef SHARED_MEM
+    qemu_printf("Starting QEMU writeout with shared memory!\n");
     sem_t *sem_write_1, *sem_write_2, *sem_read_1, *sem_read_2; //TODO clean these up some way
 
-    //Open semaphores //TODO define guard this
-    sem_write_1 = sem_open("/qemu_st_sem_write_1", O_CREAT, S_IRWXU, 1);
+    //Open semaphores
+    sem_write_1 = sem_open("qemu_st_sem_write_1", O_CREAT, S_IRWXU, 1);
     if (sem_write_1 == NULL) {
         printf("Error opening write semaphore!");
         return NULL;
     }
-    sem_write_2 = sem_open("/qemu_st_sem_write_2", O_CREAT, S_IRWXU, 1);
+    sem_write_2 = sem_open("qemu_st_sem_write_2", O_CREAT, S_IRWXU, 1);
     if (sem_write_2 == NULL) {
         printf("Error opening write semaphore!");
         return NULL;
@@ -188,18 +189,18 @@ static gpointer writeout_thread(gpointer opaque)
 
     uint64_t buffer_size = 1024*1024*8;
 
-    sem_read_1 = sem_open("/qemu_st_sem_read_1", O_CREAT, S_IRWXU, 0);
+    sem_read_1 = sem_open("qemu_st_sem_read_1", O_CREAT, S_IRWXU, 0);
     if (sem_read_1 == NULL) {
         printf("Error opening read semaphore!");
         return NULL;
     }
-    sem_read_2 = sem_open("/qemu_st_sem_read_2", O_CREAT, S_IRWXU, 0);
+    sem_read_2 = sem_open("qemu_st_sem_read_2", O_CREAT, S_IRWXU, 0);
     if (sem_read_2 == NULL) {
         printf("Error opening read semaphore!");
         return NULL;
     }
     // Setup shared memory region
-    int out_buffer_1 = shm_open("/qemu_simple_trace_buffer_1", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
+    int out_buffer_1 = shm_open("qemu_simple_trace_buffer_1", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
     if (out_buffer_1 < 0) {
         printf("In shm_open() of buffer 1");
         return NULL;
@@ -218,7 +219,7 @@ static gpointer writeout_thread(gpointer opaque)
     }
 
         // Setup shared memory region
-    int out_buffer_2 = shm_open("/qemu_simple_trace_buffer_2", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
+    int out_buffer_2 = shm_open("qemu_simple_trace_buffer_2", O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG);
     if (out_buffer_2 < 0) {
         printf("In shm_open() of buffer 2");
         return NULL;
@@ -240,6 +241,7 @@ static gpointer writeout_thread(gpointer opaque)
     void* cur_buffer = out_1;
     bool using_buf1 = true;
     sem_wait(sem_write_1);
+    printf("Aquired needed locks!\n");
 #endif /*SHARED_MEM*/
     for (;;) {
         wait_for_trace_records_available();
@@ -419,7 +421,7 @@ static int st_write_event_mapping(void)
     trace_event_iter_init(&iter, NULL);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         //uint64_t id = trace_event_get_id(ev);
-	      uint8_t event_id = (uint8_t)(trace_event_get_id(ev) %  (1 << 5));
+        uint8_t event_id = (uint8_t)(trace_event_get_id(ev) %  (1 << 5));
         const char *name = trace_event_get_name(ev);
         uint32_t len = strlen(name);
         if (fwrite(&event_id, sizeof(event_id), 1, trace_mapping_fp) != 1 ||
@@ -465,6 +467,7 @@ void st_set_trace_file_enabled(bool enable)
             trace_fp = NULL;
             return;
         }
+        fclose(trace_mapping_fp);
         qemu_printf("Written mapping!\n");
 
         /* Resume trace writeout */

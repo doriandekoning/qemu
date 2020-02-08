@@ -35,6 +35,7 @@
 #include "sev_i386.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
+#include "hw/i386/e820_memory_layout.h"
 
 
 /* Perform linear address sign extension */
@@ -715,6 +716,21 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
 }
 
 
+void hmp_info_e820(Monitor *mon, const QDict *qdict) {
+    int type = E820_RAM;
+    uint64_t addr, len;
+
+    int amount = e820_get_num_entries();
+    monitor_printf(mon, "%x\n", amount);
+    for(int i = 0; i < amount; i++) {
+        if(e820_get_entry(i, type , &addr, &len)) {
+            monitor_printf(mon, "%lx,%lx\n", addr, len);
+        }
+    }
+}
+
+
+
 void hmp_dump_pagetable(Monitor *mon, const QDict *qdict)
 {
 	CPUArchState *env;
@@ -866,3 +882,4 @@ SevCapability *qmp_query_sev_capabilities(Error **errp)
 
     return data;
 }
+

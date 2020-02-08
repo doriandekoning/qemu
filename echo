@@ -1,0 +1,1 @@
+{"QMP": {"version": {"qemu": {"micro": 91, "minor": 1, "major": 4}, "package": "v4.2.0-rc1-31-g325687f054-dirty"}, "capabilities": ["oob"]}}

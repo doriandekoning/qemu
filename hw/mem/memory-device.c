@@ -197,11 +197,11 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
 {
     GSList *devices = NULL, *item;
     MemoryDeviceInfoList *list = NULL, *prev = NULL;
-
     object_child_foreach(qdev_get_machine(), memory_device_build_list,
                          &devices);
 
     for (item = devices; item; item = g_slist_next(item)) {
+        printf("Found a device!\n");
         const MemoryDeviceState *md = MEMORY_DEVICE(item->data);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(item->data);
         MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);

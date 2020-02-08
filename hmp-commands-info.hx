@@ -932,6 +932,22 @@ STEXI
 Show SEV information.
 ETEXI
 
+#if defined(TARGET_I386)
+    {
+        .name       = "e820",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Show e820 information",
+        .cmd        = hmp_info_e820
+    },
+#endif
+STEXI
+@item info e820
+@findex info e820
+Show e820 information.
+ETEXI
+
+
 STEXI
 @end table
 ETEXI

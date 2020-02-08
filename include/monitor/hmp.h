@@ -155,4 +155,5 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict);
 void hmp_info_sev(Monitor *mon, const QDict *qdict);
 void hmp_dump_pagetable(Monitor *mon, const QDict *qdict);
 void hmp_flush_simpletrace_file(Monitor *mon, const QDict *qdict);
+void hmp_info_e820(Monitor *mon, const QDict *qdict);
 #endif

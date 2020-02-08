@@ -38,6 +38,7 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "hw/i386/e820_memory_layout.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -413,3 +414,26 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+
+
+MemoryRangeList *qmp_e820_info(Error **errp) {
+    int type = E820_RAM;
+    uint64_t addr, len;
+
+    MemoryRangeList *range_list = NULL;
+    int amount = e820_get_num_entries();
+    for(int i = 0; i < amount; i++) {
+        if(e820_get_entry(i, type , &addr, &len)) {
+            MemoryRangeList *range = g_malloc0(sizeof(*range));
+            range->value = g_malloc0(sizeof(*range->value));
+            range->value->start = addr;
+            range->value-> end = addr+len;
+            range->next = range_list;
+            range_list = range;
+        }
+    }
+    return range_list;
+}
+
+

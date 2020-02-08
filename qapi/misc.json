@@ -1753,3 +1753,22 @@
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
 
+
+##
+# @MemoryRange:
+#
+# E820 Memory Range
+#
+# @start: an array of memory ranges
+# @end: end of the range
+#
+##
+{ 'struct':'MemoryRange', 'data': {'start': 'int', 'end': 'int' } }
+
+
+##
+# @e820-info:
+#
+# Show the e820 map for the
+##
+{'command':'e820-info', 'returns': ['MemoryRange'] }
